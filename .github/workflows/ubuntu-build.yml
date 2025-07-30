@@ -1,0 +1,60 @@
+name: Install Dependencies
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  install-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build essentials
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential curl wget tar autoconf pkg-config
+
+      - name: Download and install latest libevent
+        run: |
+          set -e
+          LIBEVENT_URL=$(curl -sL https://api.github.com/repos/libevent/libevent/releases/latest | grep "browser_download_url.*tar.gz" | cut -d '"' -f 4 | head -n1)
+          echo "Libevent download URL: $LIBEVENT_URL"
+          wget "$LIBEVENT_URL" -O libevent.tar.gz
+          tar xzf libevent.tar.gz
+          cd libevent-*
+          ./configure --prefix=/usr/local
+          make
+          sudo make install
+          cd ..
+
+      - name: Download and install latest ncurses
+        run: |
+          set -e
+          NCURSES_URL=$(curl -s "https://invisible-mirror.net/archives/ncurses/" | grep -oP 'href="ncurses-[\d\.]+\.tar\.gz"' | sed 's/href="//;s/"//' | sort -V | tail -n1)
+          NCURSES_URL_FULL="https://invisible-mirror.net/archives/ncurses/$NCURSES_URL"
+          echo "Ncurses download URL: $NCURSES_URL_FULL"
+          wget "$NCURSES_URL_FULL" -O ncurses.tar.gz
+          tar xzf ncurses.tar.gz
+          cd ncurses-*
+          ./configure --prefix=/usr/local
+          make
+          sudo make install
+          cd ..
+
+      - name: Build main repository with autogen, configure, and make
+        run: |
+          set -e
+          # Ensure we're at the root (the repo is already checked out)
+          ./autogen.sh
+          ./configure
+          make
+
+      - name: Verify installations
+        run: |
+          ldconfig -p | grep event
+          ldconfig -p | grep ncurses
