@@ -54,7 +54,12 @@ jobs:
           ./configure
           make
 
-      - name: Verify installations
+      - name: Archive build binaries
         run: |
-          ldconfig -p | grep event
-          ldconfig -p | grep ncurses
+          tar czvf tmux-build.tar.gz tmux
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tmux-build
+          path: tmux-build.tar.gz
